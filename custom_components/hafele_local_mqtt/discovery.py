@@ -118,6 +118,9 @@ class HafeleDiscovery:
                         group_addr,
                     )
 
+            # Notify that groups have been updated
+            self.hass.bus.async_fire(EVENT_DEVICES_UPDATED)
+
         except (json.JSONDecodeError, KeyError, TypeError) as err:
             _LOGGER.error("Error parsing groups message: %s", err)
 

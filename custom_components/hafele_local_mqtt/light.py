@@ -250,30 +250,46 @@ async def async_setup_entry(
     polling_interval = data["polling_interval"]
     polling_timeout = data["polling_timeout"]
 
-    # Find the "TOS_Internal_All" group for efficient polling
-    all_groups = discovery.get_all_groups()
-    group_coordinator: HafeleGroupCoordinator | None = None
-    for group_addr, group_info in all_groups.items():
-        group_name = group_info.get("group_name", "")
-        if group_name == "TOS_Internal_All":
-            _LOGGER.info("Found TOS_Internal_All group, using group-based polling")
-            group_coordinator = HafeleGroupCoordinator(
-                hass,
-                mqtt_client,
-                group_name,
-                topic_prefix,
-                polling_interval,
-                polling_timeout,
-            )
-            await group_coordinator._async_setup_subscriptions()
-            # Start the coordinator
-            await group_coordinator.async_config_entry_first_refresh()
-            break
-
-    if not group_coordinator:
+    # Function to find and setup group coordinator
+    async def _setup_group_coordinator() -> HafeleGroupCoordinator | None:
+        """Find and setup the TOS_Internal_All group coordinator."""
+        # Wait a bit for groups to be discovered
+        import asyncio
+        max_wait = 10  # Wait up to 10 seconds
+        waited = 0
+        while waited < max_wait:
+            all_groups = discovery.get_all_groups()
+            for group_addr, group_info in all_groups.items():
+                group_name = group_info.get("group_name", "")
+                if group_name == "TOS_Internal_All":
+                    _LOGGER.info("Found TOS_Internal_All group, using group-based polling")
+                    group_coord = HafeleGroupCoordinator(
+                        hass,
+                        mqtt_client,
+                        group_name,
+                        topic_prefix,
+                        polling_interval,
+                        polling_timeout,
+                    )
+                    await group_coord._async_setup_subscriptions()
+                    # Start the coordinator by requesting first refresh
+                    await group_coord.async_request_refresh()
+                    return group_coord
+            
+            # Group not found yet, wait a bit
+            if waited < max_wait:
+                _LOGGER.debug("Waiting for TOS_Internal_All group discovery...")
+                await asyncio.sleep(0.5)
+                waited += 0.5
+        
         _LOGGER.warning(
-            "TOS_Internal_All group not found, falling back to individual device polling"
+            "TOS_Internal_All group not found after %d seconds, falling back to individual device polling",
+            max_wait,
         )
+        return None
+
+    # Try to setup group coordinator
+    group_coordinator_ref: HafeleGroupCoordinator | None = await _setup_group_coordinator()
 
     # Track which entities we've already created
     created_entities: set[int] = set()
@@ -325,10 +341,11 @@ async def async_setup_entry(
             
             # If using group polling, don't start individual coordinator polling
             # Status updates will come from group polling
-            # Note: group_coordinator is captured from outer scope
-            if not group_coordinator:
+            if not group_coordinator_ref:
                 # Only start individual polling if group polling is not available
-                await coordinator.async_config_entry_first_refresh()
+                # Use async_request_refresh instead of async_config_entry_first_refresh
+                # since we don't have a config entry reference in the coordinator
+                await coordinator.async_request_refresh()
 
             # Create entity
             entity = HafeleLightEntity(
@@ -344,7 +361,42 @@ async def async_setup_entry(
     @callback
     def _on_devices_updated(event) -> None:
         """Handle device discovery update event."""
+        nonlocal group_coordinator_ref
+        
+        # Check if groups were just discovered and we need to setup group coordinator
+        if not group_coordinator_ref:
+            all_groups = discovery.get_all_groups()
+            for group_addr, group_info in all_groups.items():
+                group_name = group_info.get("group_name", "")
+                if group_name == "TOS_Internal_All":
+                    _LOGGER.info("Found TOS_Internal_All group after discovery update, setting up group-based polling")
+                    hass.async_create_task(_setup_group_coordinator_later())
+                    break
+        
         hass.async_create_task(_create_entities_for_devices())
+    
+    async def _setup_group_coordinator_later() -> None:
+        """Setup group coordinator after groups are discovered."""
+        nonlocal group_coordinator_ref
+        if group_coordinator_ref:
+            return  # Already set up
+        
+        all_groups = discovery.get_all_groups()
+        for group_addr, group_info in all_groups.items():
+            group_name = group_info.get("group_name", "")
+            if group_name == "TOS_Internal_All":
+                _LOGGER.info("Setting up TOS_Internal_All group coordinator")
+                group_coordinator_ref = HafeleGroupCoordinator(
+                    hass,
+                    mqtt_client,
+                    group_name,
+                    topic_prefix,
+                    polling_interval,
+                    polling_timeout,
+                )
+                await group_coordinator_ref._async_setup_subscriptions()
+                await group_coordinator_ref.async_request_refresh()
+                break
 
     # Listen for device discovery updates
     entry.async_on_unload(
