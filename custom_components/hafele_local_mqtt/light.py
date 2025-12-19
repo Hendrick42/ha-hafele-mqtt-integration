@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import timedelta
 from typing import Any
+from urllib.parse import quote
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -42,6 +43,7 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         mqtt_client: HafeleMQTTClient,
         device_addr: int,
+        device_name: str,
         topic_prefix: str,
         polling_interval: int,
         polling_timeout: int,
@@ -49,22 +51,36 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.mqtt_client = mqtt_client
         self.device_addr = device_addr
+        self.device_name = device_name
         self.topic_prefix = topic_prefix
         self.polling_timeout = polling_timeout
         self._status_data: dict[str, Any] = {}
         self._status_received = False
         self._unsubscribers: list = []
 
+        # URL encode device name for MQTT topic (handles spaces and special chars)
+        encoded_device_name = quote(device_name, safe="")
+
         # Set up response topic subscription
-        response_topic = TOPIC_DEVICE_RESPONSE.format(
-            prefix=topic_prefix, addr=device_addr
-        )
         status_topic = TOPIC_DEVICE_STATUS.format(
-            prefix=topic_prefix, addr=device_addr
+            prefix=topic_prefix, device_name=encoded_device_name
+        )
+        # Also try response topic for compatibility
+        response_topic = TOPIC_DEVICE_RESPONSE.format(
+            prefix=topic_prefix, device_name=encoded_device_name
+        )
+
+        _LOGGER.debug(
+            "Setting up topics for device %s (name: %s, encoded: %s): status=%s, response=%s",
+            device_addr,
+            device_name,
+            encoded_device_name,
+            status_topic,
+            response_topic,
         )
 
         # Try both possible response topics
-        self.response_topics = [response_topic, status_topic]
+        self.response_topics = [status_topic, response_topic]
 
         super().__init__(
             hass,
@@ -118,9 +134,19 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         """Fetch status from device via MQTT polling."""
         import asyncio
 
+        # URL encode device name for MQTT topic
+        encoded_device_name = quote(self.device_name, safe="")
+
         # Request status
         get_topic = TOPIC_DEVICE_GET.format(
-            prefix=self.topic_prefix, addr=self.device_addr
+            prefix=self.topic_prefix, device_name=encoded_device_name
+        )
+
+        _LOGGER.debug(
+            "Requesting status for device %s (name: %s) on topic: %s",
+            self.device_addr,
+            self.device_name,
+            get_topic,
         )
 
         # Reset status received flag
@@ -192,11 +218,15 @@ async def async_setup_entry(
                 device_addr,
             )
 
+            # Get device name for topic construction
+            device_name = device_info.get("device_name", f"device_{device_addr}")
+
             # Create coordinator for polling
             coordinator = HafeleLightCoordinator(
                 hass,
                 mqtt_client,
                 device_addr,
+                device_name,
                 topic_prefix,
                 polling_interval,
                 polling_timeout,
@@ -251,6 +281,10 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         self._attr_name = device_info.get("device_name", f"Hafele Light {device_addr}")
         self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         self._attr_color_mode = ColorMode.BRIGHTNESS
+
+        # Store encoded device name for MQTT topics (URL encode to handle spaces)
+        device_name = device_info.get("device_name", f"device_{device_addr}")
+        self._encoded_device_name = quote(device_name, safe="")
 
         # Device info
         location = device_info.get("location", "Unknown")
@@ -314,7 +348,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
         set_topic = TOPIC_DEVICE_SET.format(
-            prefix=self.topic_prefix, addr=self.device_addr
+            prefix=self.topic_prefix, device_name=self._encoded_device_name
         )
 
         # Build command payload
@@ -342,7 +376,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
         set_topic = TOPIC_DEVICE_SET.format(
-            prefix=self.topic_prefix, addr=self.device_addr
+            prefix=self.topic_prefix, device_name=self._encoded_device_name
         )
 
         command = {"power": "off"}

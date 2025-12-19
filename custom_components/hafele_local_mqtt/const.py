@@ -20,15 +20,15 @@ TOPIC_DISCOVERY_LIGHTS = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_LIGHTS}"
 TOPIC_DISCOVERY_GROUPS = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_GROUPS}"
 TOPIC_DISCOVERY_SCENES = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_SCENES}"
 
-# Control topics (published) - patterns to be determined
-TOPIC_DEVICE_SET = "{prefix}/device/{addr}/set"
-TOPIC_DEVICE_GET = "{prefix}/device/{addr}/get"
-TOPIC_GROUP_SET = "{prefix}/group/{addr}/set"
-TOPIC_SCENE_ACTIVATE = "{prefix}/scene/{scene_id}/activate"
+# Control topics (published) - using device_name per API docs
+TOPIC_DEVICE_SET = "{prefix}/lights/{device_name}/set"
+TOPIC_DEVICE_GET = "{prefix}/lights/{device_name}/get"
+TOPIC_GROUP_SET = "{prefix}/groups/{group_name}/set"
+TOPIC_SCENE_ACTIVATE = "{prefix}/scenes/{scene_name}/activate"
 
-# Status topics (subscribed) - patterns to be determined
-TOPIC_DEVICE_STATUS = "{prefix}/device/{addr}/status"
-TOPIC_DEVICE_RESPONSE = "{prefix}/device/{addr}/response"
+# Status topics (subscribed) - using device_name per API docs
+TOPIC_DEVICE_STATUS = "{prefix}/lights/{device_name}/status"
+TOPIC_DEVICE_RESPONSE = "{prefix}/lights/{device_name}/response"
 
 # Configuration keys
 CONF_TOPIC_PREFIX = "topic_prefix"
