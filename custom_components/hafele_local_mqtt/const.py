@@ -14,25 +14,28 @@ TOPIC_SCENES = "scenes"
 DEFAULT_POLLING_INTERVAL = 30  # seconds
 DEFAULT_POLLING_TIMEOUT = 5  # seconds
 
-# MQTT Topic Patterns (to be verified with actual API)
-# Discovery topics (subscribed)
-TOPIC_DISCOVERY_LIGHTS = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_LIGHTS}"
-TOPIC_DISCOVERY_GROUPS = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_GROUPS}"
-TOPIC_DISCOVERY_SCENES = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_SCENES}"
+# MQTT Topic Patterns - Verified against API documentation
+# Reference: https://help.connect-mesh.io/mqtt/index.html
 
-# Control topics (published) - operation-specific topics per API docs
-# Device name is in the payload, not the topic path
-TOPIC_GET_DEVICE_POWER = "{prefix}/getDevicePower"
-TOPIC_SET_DEVICE_POWER = "{prefix}/setDevicePower"
-TOPIC_SET_DEVICE_LIGHTNESS = "{prefix}/setDeviceLightness"
-TOPIC_GET_DEVICE_LIGHTNESS = "{prefix}/getDeviceLightness"
-TOPIC_SET_GROUP_POWER = "{prefix}/setGroupPower"
-TOPIC_GET_GROUP_POWER = "{prefix}/getGroupPower"
-TOPIC_RECALL_SCENE = "{prefix}/recallScene"
+# Discovery topics (RECEIVE - Subscribe)
+# API: RECEIVE lightsDiscovery, groupDiscovery, sceneDiscovery
+TOPIC_DISCOVERY_LIGHTS = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_LIGHTS}"  # {gateway_topic}/lights
+TOPIC_DISCOVERY_GROUPS = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_GROUPS}"  # {gateway_topic}/groups
+TOPIC_DISCOVERY_SCENES = f"{DEFAULT_TOPIC_PREFIX}/{TOPIC_SCENES}"  # {gateway_topic}/scenes
 
-# Status topics (subscribed) - operation-specific topics per API docs
-TOPIC_LIGHT_STATUS = "{prefix}/lightStatus"
-TOPIC_GROUP_STATUS = "{prefix}/groupStatus"
+# Control topics (SEND - Publish)
+# API: SEND setDevicePower, setDeviceLightness, setGroupPower, recallScene
+# Format: {gateway_topic}/lights/{device_name}/{operation}
+TOPIC_DEVICE_POWER = "{prefix}/lights/{device_name}/power"  # setDevicePower / getDevicePower
+TOPIC_DEVICE_LIGHTNESS = "{prefix}/lights/{device_name}/lightness"  # setDeviceLightness / getDeviceLightness
+TOPIC_GROUP_POWER = "{prefix}/groups/{group_name}/power"  # setGroupPower / getGroupPower
+TOPIC_SCENE_ACTIVATE = "{prefix}/scenes/{scene_name}/activate"  # recallScene
+
+# Status topics (RECEIVE - Subscribe)
+# API: RECEIVE lightStatus, groupStatus
+# Format: {gateway_topic}/lights/{device_name}/status
+TOPIC_DEVICE_STATUS = "{prefix}/lights/{device_name}/status"  # lightStatus
+TOPIC_GROUP_STATUS = "{prefix}/groups/{group_name}/status"  # groupStatus
 
 # Configuration keys
 CONF_TOPIC_PREFIX = "topic_prefix"
