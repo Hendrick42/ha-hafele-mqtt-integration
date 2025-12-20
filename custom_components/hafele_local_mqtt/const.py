@@ -50,6 +50,7 @@ CONF_POLLING_INTERVAL = "polling_interval"
 CONF_POLLING_TIMEOUT = "polling_timeout"
 CONF_ENABLE_GROUPS = "enable_groups"
 CONF_ENABLE_SCENES = "enable_scenes"
+CONF_GROUP_MODE = "group_mode"  # "mqtt", "ha", or "both"
 
 # MQTT Broker Configuration (optional - uses HA MQTT if not provided)
 CONF_MQTT_BROKER = "mqtt_broker"

@@ -226,7 +226,11 @@ async def async_setup_entry(
             group_name = group_info.get("group_name", f"group_{group_addr}")
             
             # Special case for TOS_Internal_All - use friendly name
-            display_name = "All hafele lights" if group_name == "TOS_Internal_All" else group_name
+            if group_name == "TOS_Internal_All":
+                display_name = "All hafele lights"
+            else:
+                # Add "group" suffix to group names
+                display_name = f"{group_name} group"
 
             _LOGGER.info(
                 "Creating group entity for group: %s (addr: %s)",
