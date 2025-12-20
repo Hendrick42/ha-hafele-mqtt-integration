@@ -280,10 +280,29 @@ async def async_setup_entry(
             # since we don't have a config entry reference in the coordinator
             await coordinator.async_request_refresh()
 
+            # Generate entity_id from device name with "_mqtt" suffix
+            import re
+            device_name = device_info.get("device_name", f"device_{device_addr}")
+            # Generate entity_id from device name: lowercase, replace spaces with underscores
+            entity_id_base = device_name.lower().replace(" ", "_").replace("-", "_")
+            # Remove any special characters that aren't allowed in entity IDs
+            entity_id_base = re.sub(r"[^a-z0-9_]", "", entity_id_base)
+            suggested_object_id = f"{entity_id_base}_mqtt"
+            
+            # Register entity in registry first with suggested entity_id
+            unique_id = f"{device_addr}_mqtt"
+            entity_registry.async_get_or_create(
+                "light",
+                DOMAIN,
+                unique_id,
+                suggested_object_id=suggested_object_id,
+            )
+            
             # Create entity
             entity = HafeleLightEntity(
                 coordinator, device_addr, device_info, mqtt_client, topic_prefix
             )
+            
             new_entities.append(entity)
             created_entities.add(device_addr)
 
