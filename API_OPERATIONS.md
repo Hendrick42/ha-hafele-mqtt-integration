@@ -2,15 +2,20 @@
 
 This document lists all available operations in the Häfele Connect MQTT API v0.2.0, based on the official documentation at [help.connect-mesh.io](https://help.connect-mesh.io/mqtt/index.html).
 
+## Important Note About Operation IDs
+
+**Operation IDs** (like `setDevicePower`, `getDevicePower`, etc.) are **ONLY for API documentation lookup purposes**. They are **NEVER used in actual MQTT topic names**. The actual topic names follow different patterns as documented below.
+
 ## Topic Structure
 
-All topics use the format: `{gateway_topic}/{operation}`
+All topics use the format: `{gateway_topic}/lights/{device_name}/{topic_name}` or `{gateway_topic}/groups/{group_name}/{topic_name}`
 
 Where `{gateway_topic}` is the root topic configured for your gateway (default: `hafele`).
 
 ## Discovery Operations (RECEIVE - Subscribe)
 
 ### RECEIVE lightsDiscovery
+**Operation ID:** `lightsDiscovery`  
 **Topic:** `{gateway_topic}/lights`
 
 **Description:** Receives information about discovered lights in the network.
@@ -37,6 +42,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### RECEIVE groupDiscovery
+**Operation ID:** `groupDiscovery`  
 **Topic:** `{gateway_topic}/groups`
 
 **Description:** Receives information about discovered groups in the network.
@@ -60,6 +66,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### RECEIVE sceneDiscovery
+**Operation ID:** `sceneDiscovery`  
 **Topic:** `{gateway_topic}/scenes`
 
 **Description:** Receives information about discovered scenes in the network.
@@ -83,6 +90,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ## Status Operations (RECEIVE - Subscribe)
 
 ### RECEIVE lightStatus
+**Operation ID:** `lightStatus`  
 **Topic:** `{gateway_topic}/lights/{device_name}/status`
 
 **Description:** Receives status updates from light devices.
@@ -112,6 +120,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### RECEIVE groupStatus
+**Operation ID:** `groupStatus`  
 **Topic:** `{gateway_topic}/groups/{group_name}/status`
 
 **Description:** Receives status updates from groups.
@@ -141,6 +150,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ## Device Control Operations (SEND - Publish)
 
 ### SEND setDevicePower
+**Operation ID:** `setDevicePower`  
 **Topic:** `{gateway_topic}/lights/{device_name}/power`
 
 **Description:** Sets the power state of a specific device.
@@ -158,7 +168,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getDevicePower
-**Topic:** `{gateway_topic}/lights/{device_name}/power`
+**Operation ID:** `getDevicePower`  
+**Topic:** `{gateway_topic}/lights/{device_name}/powerGet`
 
 **Description:** Requests the current power state of a specific device.
 
@@ -172,6 +183,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setDeviceLightness
+**Operation ID:** `setDeviceLightness`  
 **Topic:** `{gateway_topic}/lights/{device_name}/lightness`
 
 **Description:** Sets the lightness level of a specific device.
@@ -191,7 +203,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getDeviceLightness
-**Topic:** `{gateway_topic}/lights/{device_name}/lightness`
+**Operation ID:** `getDeviceLightness`  
+**Topic:** `{gateway_topic}/lights/{device_name}/lightnessGet`
 
 **Description:** Requests the current lightness level of a specific device.
 
@@ -205,6 +218,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setDeviceTemperature
+**Operation ID:** `setDeviceTemperature`  
 **Topic:** `{gateway_topic}/lights/{device_name}/temperature`
 
 **Description:** Sets the color temperature of a specific device.
@@ -224,6 +238,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setDeviceHue
+**Operation ID:** `setDeviceHue`  
 **Topic:** `{gateway_topic}/lights/{device_name}/hue`
 
 **Description:** Sets the hue of a specific device.
@@ -243,6 +258,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setDeviceSaturation
+**Operation ID:** `setDeviceSaturation`  
 **Topic:** `{gateway_topic}/lights/{device_name}/saturation`
 
 **Description:** Sets the saturation of a specific device.
@@ -262,6 +278,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setDeviceHsl
+**Operation ID:** `setDeviceHsl`  
 **Topic:** `{gateway_topic}/lights/{device_name}/hsl`
 
 **Description:** Sets the hue, saturation, and lightness of a specific device.
@@ -285,7 +302,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getDeviceHsl
-**Topic:** `{gateway_topic}/lights/{device_name}/hsl`
+**Operation ID:** `getDeviceHsl`  
+**Topic:** `{gateway_topic}/lights/{device_name}/hslGet`
 
 **Description:** Requests the current hue, saturation, and lightness of a specific device.
 
@@ -299,6 +317,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setDeviceCtl
+**Operation ID:** `setDeviceCtl`  
 **Topic:** `{gateway_topic}/lights/{device_name}/ctl`
 
 **Description:** Sets the color temperature and lightness of a specific device.
@@ -320,7 +339,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getDeviceCtl
-**Topic:** `{gateway_topic}/lights/{device_name}/ctl`
+**Operation ID:** `getDeviceCtl`  
+**Topic:** `{gateway_topic}/lights/{device_name}/ctlGet`
 
 **Description:** Requests the current color temperature and lightness of a specific device.
 
@@ -336,6 +356,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ## Group Control Operations (SEND - Publish)
 
 ### SEND setGroupPower
+**Operation ID:** `setGroupPower`  
 **Topic:** `{gateway_topic}/groups/{group_name}/power`
 
 **Description:** Sets the power state of a group.
@@ -353,7 +374,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getGroupPower
-**Topic:** `{gateway_topic}/groups/{group_name}/power`
+**Operation ID:** `getGroupPower`  
+**Topic:** `{gateway_topic}/groups/{group_name}/powerGet`
 
 **Description:** Requests the current power state of a group.
 
@@ -367,6 +389,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setGroupLightness
+**Operation ID:** `setGroupLightness`  
 **Topic:** `{gateway_topic}/groups/{group_name}/lightness`
 
 **Description:** Sets the lightness level of a group.
@@ -386,7 +409,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getGroupLightness
-**Topic:** `{gateway_topic}/groups/{group_name}/lightness`
+**Operation ID:** `getGroupLightness`  
+**Topic:** `{gateway_topic}/groups/{group_name}/lightnessGet`
 
 **Description:** Requests the current lightness level of a group.
 
@@ -400,6 +424,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setGroupTemperature
+**Operation ID:** `setGroupTemperature`  
 **Topic:** `{gateway_topic}/groups/{group_name}/temperature`
 
 **Description:** Sets the color temperature of a group.
@@ -419,6 +444,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setGroupHue
+**Operation ID:** `setGroupHue`  
 **Topic:** `{gateway_topic}/groups/{group_name}/hue`
 
 **Description:** Sets the hue of a group.
@@ -438,6 +464,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setGroupSaturation
+**Operation ID:** `setGroupSaturation`  
 **Topic:** `{gateway_topic}/groups/{group_name}/saturation`
 
 **Description:** Sets the saturation of a group.
@@ -457,6 +484,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setGroupHsl
+**Operation ID:** `setGroupHsl`  
 **Topic:** `{gateway_topic}/groups/{group_name}/hsl`
 
 **Description:** Sets the hue, saturation, and lightness of a group.
@@ -480,7 +508,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getGroupHsl
-**Topic:** `{gateway_topic}/groups/{group_name}/hsl`
+**Operation ID:** `getGroupHsl`  
+**Topic:** `{gateway_topic}/groups/{group_name}/hslGet`
 
 **Description:** Requests the current hue, saturation, and lightness of a group.
 
@@ -494,6 +523,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND setGroupCtl
+**Operation ID:** `setGroupCtl`  
 **Topic:** `{gateway_topic}/groups/{group_name}/ctl`
 
 **Description:** Sets the color temperature and lightness of a group.
@@ -515,7 +545,8 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND getGroupCtl
-**Topic:** `{gateway_topic}/groups/{group_name}/ctl`
+**Operation ID:** `getGroupCtl`  
+**Topic:** `{gateway_topic}/groups/{group_name}/ctlGet`
 
 **Description:** Requests the current color temperature and lightness of a group.
 
@@ -531,6 +562,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ## Scene Operations (SEND - Publish)
 
 ### SEND recallScene
+**Operation ID:** `recallScene`  
 **Topic:** `{gateway_topic}/scenes/{scene_name}/activate`
 
 **Description:** Recalls/activates a specific scene.
@@ -548,6 +580,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND recallSceneLegacy
+**Operation ID:** `recallSceneLegacy`  
 **Topic:** `{gateway_topic}/scenes/{scene_name}/activate`
 
 **Description:** Legacy method to recall a scene (uses scene ID instead of name).
@@ -567,6 +600,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND recallSceneGroup
+**Operation ID:** `recallSceneGroup`  
 **Topic:** `{gateway_topic}/scenes/{scene_name}/activate`
 
 **Description:** Recalls a scene for a specific group.
@@ -586,6 +620,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### SEND recallSceneDevice
+**Operation ID:** `recallSceneDevice`  
 **Topic:** `{gateway_topic}/scenes/{scene_name}/activate`
 
 **Description:** Recalls a scene for a specific device.
@@ -607,6 +642,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ## Raw Message Operations
 
 ### SEND sendRawMessage
+**Operation ID:** `sendRawMessage`  
 **Topic:** `{gateway_topic}/rawMessage/send`
 
 **Description:** Sends a raw access message to a specified destination.
@@ -628,6 +664,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ---
 
 ### RECEIVE rawMessages
+**Operation ID:** `rawMessages`  
 **Topic:** `{gateway_topic}/rawMessage`
 
 **Description:** Receives raw access messages from devices.
@@ -659,6 +696,7 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 ## Network Configuration
 
 ### SEND setNetworkConfiguration
+**Operation ID:** `setNetworkConfiguration`  
 **Topic:** `{gateway_topic}/setNetworkConfiguration`
 
 **Description:** Configures the network by specifying devices, groups, and scenes.
@@ -728,10 +766,13 @@ Where `{gateway_topic}` is the root topic configured for your gateway (default: 
 
 5. **Power States:** Use string values `"on"` or `"off"` for power operations.
 
+6. **Topic Naming Pattern:**
+   - SET operations: Use the property name directly (e.g., `power`, `lightness`, `temperature`)
+   - GET operations: Use property name + "Get" (e.g., `powerGet`, `lightnessGet`, `hslGet`)
+
 ---
 
 ## Reference
 
 - Official API Documentation: https://help.connect-mesh.io/mqtt/index.html
 - API Version: 0.2.0
-
