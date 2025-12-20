@@ -205,50 +205,85 @@ class HafeleGroupLightEntity(LightEntity):
         # to ensure all entities are fully registered
         async def _link_entities_to_group():
             """Link individual light entities to the group device."""
-            # Small delay to ensure all entities are registered
-            await asyncio.sleep(0.1)
-            
             if not (hasattr(self, "_device_addrs_to_link") and hasattr(self, "_group_device_id")):
                 return
             
             entity_registry = er.async_get(self.hass)
             linked_count = 0
+            max_retries = 10
+            retry_delay = 0.5
             
-            for device_addr in self._device_addrs_to_link:
-                device_unique_id = f"{device_addr}_mqtt"
-                light_entity_id = entity_registry.async_get_entity_id("light", DOMAIN, device_unique_id)
-                if light_entity_id:
-                    entity_entry = entity_registry.async_get(light_entity_id)
-                    if entity_entry:
-                        # Update the entity to link it to the group device
-                        entity_registry.async_update_entity(
-                            light_entity_id,
-                            device_id=self._group_device_id,
-                        )
-                        linked_count += 1
-                        _LOGGER.debug(
-                            "Linked light entity %s to group device %s",
-                            light_entity_id,
-                            self._group_device_id,
-                        )
-                    else:
-                        _LOGGER.debug(
-                            "Light entity %s not found in registry for device %s",
-                            light_entity_id,
-                            device_addr,
-                        )
-                else:
+            # Retry linking entities with a delay to ensure they're registered
+            # Start with a small delay to let entities register
+            await asyncio.sleep(0.5)
+            
+            for attempt in range(max_retries):
+                if attempt > 0:
+                    await asyncio.sleep(retry_delay)
+                
+                linked_count = 0
+                entities_found = 0
+                
+                for device_addr in self._device_addrs_to_link:
+                    device_unique_id = f"{device_addr}_mqtt"
+                    light_entity_id = entity_registry.async_get_entity_id("light", DOMAIN, device_unique_id)
+                    if light_entity_id:
+                        entities_found += 1
+                        entity_entry = entity_registry.async_get(light_entity_id)
+                        if entity_entry:
+                            # Check if already linked to the group device
+                            if entity_entry.device_id == self._group_device_id:
+                                linked_count += 1
+                                _LOGGER.debug(
+                                    "Light entity %s already linked to group device %s",
+                                    light_entity_id,
+                                    self._group_device_id,
+                                )
+                            else:
+                                # Update the entity to link it to the group device
+                                entity_registry.async_update_entity(
+                                    light_entity_id,
+                                    device_id=self._group_device_id,
+                                )
+                                linked_count += 1
+                                _LOGGER.info(
+                                    "Linked light entity %s to group device %s (was: %s)",
+                                    light_entity_id,
+                                    self._group_device_id,
+                                    entity_entry.device_id,
+                                )
+                
+                # If all entities are linked, we're done
+                if linked_count == len(self._device_addrs_to_link):
+                    _LOGGER.info(
+                        "Successfully linked %d light entities to group device %s",
+                        linked_count,
+                        self._group_device_id,
+                    )
+                    return
+                
+                # If we found all entities but not all are linked yet, wait a bit more
+                if entities_found == len(self._device_addrs_to_link):
                     _LOGGER.debug(
-                        "Could not find entity ID for device %s (unique_id: %s)",
-                        device_addr,
-                        device_unique_id,
+                        "Found all %d entities but only %d linked, retrying...",
+                        entities_found,
+                        linked_count,
                     )
             
+            # Final status log
             if linked_count > 0:
-                _LOGGER.info(
-                    "Linked %d light entities to group device %s",
+                _LOGGER.warning(
+                    "Linked %d/%d light entities to group device %s after %d attempts",
                     linked_count,
+                    len(self._device_addrs_to_link),
                     self._group_device_id,
+                    max_retries,
+                )
+            else:
+                _LOGGER.warning(
+                    "Failed to link any light entities to group device %s after %d attempts",
+                    self._group_device_id,
+                    max_retries,
                 )
         
         self.hass.async_create_task(_link_entities_to_group())
