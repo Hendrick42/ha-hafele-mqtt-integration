@@ -4,5 +4,5 @@
     "homeassistant": "2024.5.5",
     "hide_default_branch": true,
     "render_readme": true,
-    "icon": "logo.png"
+    "icon": "custom_components/hafele_local_mqtt/logo/icon.png"
 }

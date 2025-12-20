@@ -1,3 +1,5 @@
+![Logo](./custom_components/hafele_local_mqtt/logo.png)
+
 # Hafele Local MQTT Home Assistant Integration
 
 This integration provides Home Assistant support for Hafele LED lights via MQTT using local control.
