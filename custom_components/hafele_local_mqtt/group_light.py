@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change
 
 from .const import DOMAIN, EVENT_DEVICES_UPDATED
 from .discovery import HafeleDiscovery
@@ -170,7 +171,6 @@ class HafeleGroupLightEntity(LightEntity):
         group_device_id: str,
     ) -> None:
         """Initialize the group light entity."""
-        """Initialize the group light."""
         self.hass = hass
         self.group_addr = group_addr
         self.group_info = group_info
@@ -277,8 +277,8 @@ class HafeleGroupLightEntity(LightEntity):
             self.async_write_ha_state()
         
         # Listen to all child light state changes
-        self._async_unsub_state_changed = self.hass.helpers.event.async_track_state_change(
-            self.light_entity_ids, _async_state_changed_listener
+        self._async_unsub_state_changed = async_track_state_change(
+            self.hass, self.light_entity_ids, _async_state_changed_listener
         )
         
         # Get initial states
