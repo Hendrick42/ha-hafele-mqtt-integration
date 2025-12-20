@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 from datetime import timedelta
 from typing import Any, Callable
 
@@ -528,6 +529,9 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
             brightness = kwargs[ATTR_BRIGHTNESS]
             # Convert to 0-1 scale (API uses 0-1 for lightness)
             lightness_value = brightness / 255.0
+            # Round to 2 decimal places, rounding up
+            # Multiply by 100, round up with ceil, then divide by 100
+            lightness_value = math.ceil(lightness_value * 100) / 100.0
             
             # Set power first
             await self.mqtt_client.async_publish(power_topic, power_command, qos=1)
@@ -553,15 +557,18 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         # This ensures the set command has been processed before requesting status
         async def _refresh_status() -> None:
             await asyncio.sleep(0.2)  # 200ms delay
-            # Always request both power and lightness status after turning on
+            # Request power status after turning on
+            # Don't request lightness if we just set it, as we might get intermediate ramping values
             get_power_topic = TOPIC_GET_DEVICE_POWER.format(
                 prefix=self.topic_prefix, device_name=self._device_name
             )
-            get_lightness_topic = TOPIC_GET_DEVICE_LIGHTNESS.format(
-                prefix=self.topic_prefix, device_name=self._device_name
-            )
             await self.mqtt_client.async_publish(get_power_topic, {}, qos=1)
-            await self.mqtt_client.async_publish(get_lightness_topic, {}, qos=1)
+            # Only request lightness if we didn't just set it
+            if ATTR_BRIGHTNESS not in kwargs:
+                get_lightness_topic = TOPIC_GET_DEVICE_LIGHTNESS.format(
+                    prefix=self.topic_prefix, device_name=self._device_name
+                )
+                await self.mqtt_client.async_publish(get_lightness_topic, {}, qos=1)
         
         hass = self.coordinator.hass
         hass.async_create_task(_refresh_status())
