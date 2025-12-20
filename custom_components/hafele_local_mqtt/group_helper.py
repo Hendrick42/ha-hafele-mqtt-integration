@@ -120,15 +120,19 @@ async def create_ha_groups_for_hafele_groups(
             len(device_entity_ids),
         )
         
-        # Create a light group helper using the helper system
-        # Since LightGroup import fails, we'll use the helper storage system
-        # Note: This creates the helper data but may require HA restart or reload
+        # Create a light group using the helper storage system
+        # Note: This approach has limitations - helpers are typically only loaded on startup
         try:
             from homeassistant.helpers import storage
             
-            # Get helper storage
+            # Helper storage uses version 1 and key "helpers"
             helper_storage = storage.Store(hass, 1, "helpers")
-            helpers_data = await helper_storage.async_load() or {}
+            helpers_data = await helper_storage.async_load()
+            
+            if helpers_data is None:
+                helpers_data = {}
+            
+            _LOGGER.debug("Current helpers data keys: %s", list(helpers_data.keys()))
             
             # Create helper ID (must be unique)
             helper_id = f"{DOMAIN}_{group_addr}_light_group"
@@ -139,22 +143,28 @@ async def create_ha_groups_for_hafele_groups(
                 continue
             
             # Create helper entry for light group
-            helpers_data[helper_id] = {
+            # The format matches what Home Assistant expects for light_group helpers
+            helper_config = {
                 "id": helper_id,
                 "name": ha_group_name,
                 "type": "light_group",
                 "entities": device_entity_ids,
-                "all": None,  # Use default mode (all_on)
             }
+            helpers_data[helper_id] = helper_config
             
             # Save helpers data
             await helper_storage.async_save(helpers_data)
+            _LOGGER.debug(
+                "Saved light group helper to storage: %s (total helpers: %d)",
+                helper_config,
+                len(helpers_data)
+            )
             
             _LOGGER.info(
-                "Created light group helper '%s' in storage (id: %s). "
-                "Note: You may need to restart Home Assistant for the light group to appear.",
+                "Created light group helper '%s' (id: %s) in storage. "
+                "A Home Assistant restart may be required for the light group to appear.",
                 ha_group_name,
-                helper_id,
+                helper_id
             )
             
         except Exception as err:
