@@ -21,7 +21,9 @@ async def create_ha_groups_for_hafele_groups(
     discovery: HafeleDiscovery,
 ) -> None:
     """Create Home Assistant light groups for Hafele groups."""
+    _LOGGER.info("Starting creation of HA light groups for Hafele groups")
     groups = discovery.get_all_groups()
+    _LOGGER.info("Found %d Hafele groups to process", len(groups))
     
     # Build mapping of group addresses to device entity IDs
     # Use the "devices" field from the group discovery payload
@@ -100,8 +102,10 @@ async def create_ha_groups_for_hafele_groups(
         
         # Check if light group already exists
         unique_id = f"{group_addr}_light_group"
+        from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
+        
         existing_entity_id = entity_registry.async_get_entity_id(
-            LIGHT_DOMAIN, DOMAIN, unique_id
+            LIGHT_DOMAIN, GROUP_DOMAIN, unique_id
         )
         
         if existing_entity_id:
@@ -121,9 +125,10 @@ async def create_ha_groups_for_hafele_groups(
         # Create a proper light group entity using the light.group platform
         try:
             # Register the entity in the registry first
+            # Light groups created via helpers use "group" as the platform domain
             entity_entry = entity_registry.async_get_or_create(
                 LIGHT_DOMAIN,
-                DOMAIN,
+                GROUP_DOMAIN,  # Use "group" as the platform for light groups
                 unique_id,
                 suggested_object_id=entity_id_base,
                 name=ha_group_name,
