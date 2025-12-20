@@ -27,6 +27,8 @@ from .const import (
     EVENT_DEVICES_UPDATED,
     TOPIC_GET_DEVICE_LIGHTNESS,
     TOPIC_GET_DEVICE_POWER,
+    TOPIC_GET_GROUP_LIGHTNESS,
+    TOPIC_GET_GROUP_POWER,
     TOPIC_SET_DEVICE_LIGHTNESS,
     TOPIC_SET_DEVICE_POWER,
     TOPIC_DEVICE_STATUS,
@@ -60,26 +62,21 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         self._status_received = False
         self._unsubscribers: list = []
 
-        # URL encode device name for MQTT topic (handles spaces and special chars)
-        from urllib.parse import quote
-        encoded_device_name = quote(device_name, safe="")
-
-        # Subscribe to device-specific status topic
+        # Subscribe to device-specific status topic (use device name as-is, no encoding)
         status_topic = TOPIC_DEVICE_STATUS.format(
-            prefix=topic_prefix, device_name=encoded_device_name
+            prefix=topic_prefix, device_name=device_name
         )
 
         _LOGGER.debug(
-            "Setting up status subscription for device %s (name: %s, encoded: %s) on topic: %s",
+            "Setting up status subscription for device %s (name: %s) on topic: %s",
             device_addr,
             device_name,
-            encoded_device_name,
             status_topic,
         )
 
         # Device-specific status topic
         self.response_topics = [status_topic]
-        self._encoded_device_name = encoded_device_name
+        self._device_name = device_name
 
         super().__init__(
             hass,
@@ -149,10 +146,10 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
 
         # Request status using getDevicePower and getDeviceLightness operations
         get_power_topic = TOPIC_GET_DEVICE_POWER.format(
-            prefix=self.topic_prefix, device_name=self._encoded_device_name
+            prefix=self.topic_prefix, device_name=self._device_name
         )
         get_lightness_topic = TOPIC_GET_DEVICE_LIGHTNESS.format(
-            prefix=self.topic_prefix, device_name=self._encoded_device_name
+            prefix=self.topic_prefix, device_name=self._device_name
         )
 
         _LOGGER.debug(
@@ -300,6 +297,38 @@ async def async_setup_entry(
 
     # Create entities for any devices already discovered
     await _create_entities_for_devices()
+    
+    # On startup, request status for all devices via TOS_Internal_All group
+    # This triggers status updates for all devices in the group
+    async def _request_all_device_status() -> None:
+        """Request status for all devices via TOS_Internal_All group."""
+        # Wait a moment for discovery to complete
+        await asyncio.sleep(1.0)
+        
+        # Check if TOS_Internal_All group exists
+        all_groups = discovery.get_all_groups()
+        tos_group_name = None
+        for group_addr, group_info in all_groups.items():
+            group_name = group_info.get("group_name", "")
+            if group_name == "TOS_Internal_All":
+                tos_group_name = group_name
+                break
+        
+        if tos_group_name:
+            _LOGGER.info("Requesting status for all devices via TOS_Internal_All group")
+            power_get_topic = TOPIC_GET_GROUP_POWER.format(
+                prefix=topic_prefix, group_name=tos_group_name
+            )
+            lightness_get_topic = TOPIC_GET_GROUP_LIGHTNESS.format(
+                prefix=topic_prefix, group_name=tos_group_name
+            )
+            await mqtt_client.async_publish(power_get_topic, {}, qos=1)
+            await mqtt_client.async_publish(lightness_get_topic, {}, qos=1)
+        else:
+            _LOGGER.debug("TOS_Internal_All group not found, skipping group status request")
+    
+    # Request all device status on startup
+    hass.async_create_task(_request_all_device_status())
 
 
 class HafeleLightEntity(CoordinatorEntity, LightEntity):
@@ -324,11 +353,9 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         self._attr_color_mode = ColorMode.BRIGHTNESS
 
-        # Store device name and URL encode it for MQTT topics
-        from urllib.parse import quote
+        # Store device name (use as-is, no encoding)
         device_name = device_info.get("device_name", f"device_{device_addr}")
         self._device_name = device_name
-        self._encoded_device_name = quote(device_name, safe="")
 
         # Device info
         location = device_info.get("location", "Unknown")
@@ -414,7 +441,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         """Turn the light on."""
         # Use device-specific topic: {gateway_topic}/lights/{device_name}/setDevicePower
         power_topic = TOPIC_SET_DEVICE_POWER.format(
-            prefix=self.topic_prefix, device_name=self._encoded_device_name
+            prefix=self.topic_prefix, device_name=self._device_name
         )
 
         # Build command payload - API uses "onOff" not "power"
@@ -431,7 +458,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
             
             # Then set brightness using device-specific lightness topic
             lightness_topic = TOPIC_SET_DEVICE_LIGHTNESS.format(
-                prefix=self.topic_prefix, device_name=self._encoded_device_name
+                prefix=self.topic_prefix, device_name=self._device_name
             )
             lightness_command = {"lightness": lightness_value}
             await self.mqtt_client.async_publish(lightness_topic, lightness_command, qos=1)
@@ -452,10 +479,10 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
             await asyncio.sleep(0.2)  # 200ms delay
             # Always request both power and lightness status after turning on
             get_power_topic = TOPIC_GET_DEVICE_POWER.format(
-                prefix=self.topic_prefix, device_name=self._encoded_device_name
+                prefix=self.topic_prefix, device_name=self._device_name
             )
             get_lightness_topic = TOPIC_GET_DEVICE_LIGHTNESS.format(
-                prefix=self.topic_prefix, device_name=self._encoded_device_name
+                prefix=self.topic_prefix, device_name=self._device_name
             )
             await self.mqtt_client.async_publish(get_power_topic, {}, qos=1)
             await self.mqtt_client.async_publish(get_lightness_topic, {}, qos=1)
@@ -467,7 +494,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         """Turn the light off."""
         # Use device-specific topic: {gateway_topic}/lights/{device_name}/setDevicePower
         power_topic = TOPIC_SET_DEVICE_POWER.format(
-            prefix=self.topic_prefix, device_name=self._encoded_device_name
+            prefix=self.topic_prefix, device_name=self._device_name
         )
 
         # API uses "onOff" not "power"
