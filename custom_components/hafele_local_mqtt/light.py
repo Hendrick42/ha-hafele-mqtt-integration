@@ -14,6 +14,7 @@ from homeassistant.components.light import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -204,8 +205,11 @@ async def async_setup_entry(
     polling_interval = data["polling_interval"]
     polling_timeout = data["polling_timeout"]
 
-    # Track which entities we've already created
+    # Track which entities we've already created in this session
     created_entities: set[int] = set()
+    
+    # Get entity registry to check for existing entities
+    entity_registry = er.async_get(hass)
 
     async def _create_entities_for_devices() -> None:
         """Create entities for all discovered light devices."""
@@ -213,8 +217,33 @@ async def async_setup_entry(
         new_entities = []
 
         for device_addr, device_info in devices.items():
-            # Skip if we've already created this entity
+            # Skip if we've already created this entity in this session
             if device_addr in created_entities:
+                continue
+            
+            # Check if entity already exists in Home Assistant's entity registry
+            # Check both new and old unique_id formats for migration compatibility
+            new_unique_id = f"hafele_mqtt_{device_addr}"
+            old_unique_id = f"hafele_light_{device_addr}"
+            
+            existing_entity_id = entity_registry.async_get_entity_id(
+                "light", DOMAIN, new_unique_id
+            )
+            if not existing_entity_id:
+                # Also check for old format (migration case)
+                existing_entity_id = entity_registry.async_get_entity_id(
+                    "light", DOMAIN, old_unique_id
+                )
+            
+            if existing_entity_id:
+                _LOGGER.debug(
+                    "Entity already exists for device %s (addr: %s, entity_id: %s), skipping",
+                    device_info.get("device_name"),
+                    device_addr,
+                    existing_entity_id,
+                )
+                # Mark as created so we don't try again
+                created_entities.add(device_addr)
                 continue
 
             # Only create entities for lights
