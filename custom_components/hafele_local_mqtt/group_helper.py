@@ -4,10 +4,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
-from homeassistant.components.group.light import LightGroup
+from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
+from homeassistant.components.light.group import LightGroup
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_platform import EntityPlatform
 
 from .const import DOMAIN, EVENT_DEVICES_UPDATED
 from .discovery import HafeleDiscovery
@@ -19,7 +20,7 @@ async def create_ha_groups_for_hafele_groups(
     hass: HomeAssistant,
     discovery: HafeleDiscovery,
 ) -> None:
-    """Create Home Assistant helper groups for Hafele groups."""
+    """Create Home Assistant light groups for Hafele groups."""
     groups = discovery.get_all_groups()
     
     # Build mapping of group addresses to device entity IDs
@@ -45,7 +46,7 @@ async def create_ha_groups_for_hafele_groups(
         for device_addr in device_addrs:
             # Find the entity ID for this device using its unique_id
             unique_id = f"{device_addr}_mqtt"
-            entity_id = entity_registry.async_get_entity_id("light", DOMAIN, unique_id)
+            entity_id = entity_registry.async_get_entity_id(LIGHT_DOMAIN, DOMAIN, unique_id)
             if entity_id:
                 entity_ids.append(entity_id)
             else:
@@ -71,7 +72,7 @@ async def create_ha_groups_for_hafele_groups(
                 group_addr,
             )
     
-    # Create HA groups for each Hafele group
+    # Create light groups for each Hafele group
     for group_addr, group_info in groups.items():
         group_name = group_info.get("group_name", f"group_{group_addr}")
         
@@ -86,74 +87,80 @@ async def create_ha_groups_for_hafele_groups(
         import re
         entity_id_base = ha_group_name.lower().replace(" ", "_").replace("-", "_")
         entity_id_base = re.sub(r"[^a-z0-9_]", "", entity_id_base)
-        group_entity_id = f"light.{entity_id_base}"
         
         # Get device entity IDs for this group
         device_entity_ids = group_to_devices.get(group_addr, [])
         
         if not device_entity_ids:
             _LOGGER.debug(
-                "Skipping HA group creation for %s - no device entities found",
+                "Skipping light group creation for %s - no device entities found",
                 group_name,
             )
             continue
         
-        # Check if group already exists and update it if needed
+        # Check if light group already exists
+        unique_id = f"{group_addr}_light_group"
         existing_entity_id = entity_registry.async_get_entity_id(
-            "light", GROUP_DOMAIN, group_entity_id
+            LIGHT_DOMAIN, DOMAIN, unique_id
         )
         
         if existing_entity_id:
             _LOGGER.debug(
-                "HA group %s already exists (entity_id: %s), updating entities",
+                "Light group %s already exists (entity_id: %s), skipping",
                 ha_group_name,
                 existing_entity_id,
             )
-            # Update the existing group's entities
-            try:
-                await hass.services.async_call(
-                    GROUP_DOMAIN,
-                    "set",
-                    {
-                        "object_id": entity_id_base,
-                        "name": ha_group_name,
-                        "entities": device_entity_ids,
-                        "icon": "mdi:lightbulb-group",
-                    },
-                )
-                _LOGGER.info("Updated HA helper group '%s'", ha_group_name)
-            except Exception as err:
-                _LOGGER.error(
-                    "Error updating HA helper group '%s': %s",
-                    ha_group_name,
-                    err,
-                )
             continue
         
         _LOGGER.info(
-            "Creating HA helper group '%s' with %d lights",
+            "Creating light group '%s' with %d lights",
             ha_group_name,
             len(device_entity_ids),
         )
         
-        # Create the group using Home Assistant's group integration
-        # We'll use the group.set service to create it
+        # Create a proper light group entity using the light.group platform
         try:
-            await hass.services.async_call(
-                GROUP_DOMAIN,
-                "set",
-                {
-                    "object_id": entity_id_base,
-                    "name": ha_group_name,
-                    "entities": device_entity_ids,
-                    "icon": "mdi:lightbulb-group",
-                },
+            # Register the entity in the registry first
+            entity_entry = entity_registry.async_get_or_create(
+                LIGHT_DOMAIN,
+                DOMAIN,
+                unique_id,
+                suggested_object_id=entity_id_base,
+                name=ha_group_name,
             )
-            _LOGGER.info("Created HA helper group '%s'", ha_group_name)
+            
+            # Create the LightGroup entity
+            # LightGroup(name, entity_ids, mode=None, unique_id=None)
+            light_group = LightGroup(
+                ha_group_name,
+                device_entity_ids,
+                mode=None,  # Use default mode (all_on)
+                unique_id=unique_id,
+            )
+            
+            # Set up the entity
+            light_group.hass = hass
+            light_group.entity_id = entity_entry.entity_id
+            
+            # Get the light component and add the entity
+            from homeassistant.helpers.entity_component import EntityComponent
+            
+            if LIGHT_DOMAIN not in hass.data:
+                _LOGGER.warning("Light component not initialized, cannot create light group")
+                continue
+            
+            light_component: EntityComponent = hass.data[LIGHT_DOMAIN]
+            
+            # Add the entity to the light component
+            # This will properly register it as a light group
+            await light_component.async_add_entities([light_group], update_before_add=False)
+            
+            _LOGGER.info("Created light group '%s' (entity_id: %s)", ha_group_name, entity_entry.entity_id)
+            
         except Exception as err:
             _LOGGER.error(
-                "Error creating HA helper group '%s': %s",
+                "Error creating light group '%s': %s",
                 ha_group_name,
                 err,
+                exc_info=True,
             )
-

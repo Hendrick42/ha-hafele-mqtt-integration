@@ -14,7 +14,6 @@ from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
     CONF_ENABLE_GROUPS,
-    CONF_GROUP_MODE,
     CONF_ENABLE_SCENES,
     CONF_MQTT_BROKER,
     CONF_MQTT_PASSWORD,
@@ -50,9 +49,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
             CONF_POLLING_TIMEOUT, default=DEFAULT_POLLING_TIMEOUT
         ): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
         vol.Optional(CONF_ENABLE_GROUPS, default=True): bool,
-        vol.Optional(
-            CONF_GROUP_MODE, default="mqtt"
-        ): vol.In(["mqtt", "ha", "both"]),  # "mqtt" = MQTT group entities, "ha" = HA helper groups, "both" = both
         vol.Optional(CONF_ENABLE_SCENES, default=True): bool,
     }
 )
