@@ -20,6 +20,10 @@ Please note that this should be considered unstable and is definitely in an alph
 
 ## Installation
 
+The first part of installation should be enabling the MQTT functionality on your hafele devices. Please follow directions found in this github issue: [https://github.com/qnimbus/haefele-connect-mesh/issues/2](https://github.com/qnimbus/haefele-connect-mesh/issues/2)
+
+I ended up installing Mosquito Broker and MQTT Explorer on my HA instance as well to facilitate the installation.
+
 ### HACS (Recommended)
 
 1. Open HACS in Home Assistant
@@ -133,6 +137,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For issues, questions, or feature requests, please open an issue on [GitHub](https://github.com/josephyanks/ha-hafele-mqtt-integration/issues).
 
 ## Acknowledgments
+
+This absolutely wouldn't have been possible without the work done by individuals in [https://github.com/qnimbus/haefele-connect-mesh/issues/2](https://github.com/qnimbus/haefele-connect-mesh/issues/2) - specifically to [@qnimbus](https://github.com/qnimbus) for reaching out to Hafele and figuring out about the firmware / internal mqtt api.
 
 - Inspired by the [ha-shellies-discovery](https://github.com/bieniu/ha-shellies-discovery) project
 - Built for the Home Assistant community
