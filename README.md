@@ -7,26 +7,7 @@
 
 Home Assistant custom integration for controlling Hafele LED lights via MQTT using local control.
 
-## Repository Structure
-
-This repository follows the standard Home Assistant custom integration structure:
-
-```
-ha-hafele-mqtt-integration/
-├── custom_components/
-│   └── hafele_local_mqtt/    # Integration code (this is what gets installed)
-│       ├── __init__.py
-│       ├── manifest.json
-│       ├── config_flow.py
-│       ├── const.py
-│       ├── discovery.py
-│       ├── light.py
-│       ├── mqtt_client.py
-│       ├── strings.json
-│       └── README.md
-├── README.md                    # This file (repository documentation)
-└── .gitignore
-```
+Please note that this should be considered unstable and is definitely in an alpha stage. 
 
 **Important:** When installing this integration in Home Assistant, you need to copy the entire `custom_components/hafele_local_mqtt/` folder to your Home Assistant's `custom_components/` directory. The `custom_components/` folder structure is required for Home Assistant to recognize the integration.
 
@@ -36,7 +17,6 @@ ha-hafele-mqtt-integration/
 - ✅ Light control (on/off, brightness)
 - ✅ Status polling to keep device states up to date
 - ✅ Configurable polling intervals
-- ✅ Support for groups and scenes (optional)
 
 ## Installation
 
