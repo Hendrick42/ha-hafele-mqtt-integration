@@ -516,7 +516,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
                 temp_kelvin = status.get("temperature")
                 if temp_kelvin is not None:
 
-                    self._attr_color_temp = min(max(temp_kelvin, 2700), 5700)
+                    self._attr_color_temp = min(max(temp_kelvin, 2700), 5000)
                     self._attr_color_mode = ColorMode.COLOR_TEMP
             # API uses "lightness" field with 0-1 scale
             lightness = status.get("lightness")
@@ -571,7 +571,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
             # Color temperature
             if ATTR_COLOR_TEMP_KELVIN in kwargs:
                 temp_kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
-                self._attr_color_temp = min(max(temp_kelvin, 2700), 5700)
+                self._attr_color_temp = min(max(temp_kelvin, 2700), 5000)
             else:
                 self._attr_color_temp = self._attr_color_temp or 2700
 
