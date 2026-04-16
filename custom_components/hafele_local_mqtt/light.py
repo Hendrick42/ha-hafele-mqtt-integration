@@ -61,6 +61,7 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         polling_interval: int,
         polling_timeout: int,
         polling_mode: str,
+        device_types: list,
     ) -> None:
         """Initialize the coordinator."""
         self.mqtt_client = mqtt_client
@@ -73,13 +74,13 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         self._status_received = False
         self._unsubscribers: list = []
         self.entity: HafeleLightEntity | None = None  # HaefeleLightEntity
+        # Store is_multiwhite from device_info directly (don't wait for entity)
+        self.is_multiwhite = any(t.lower() == "multiwhite" for t in device_types)
 
         # Subscribe to device-specific status topic (use device name as-is, no encoding)
         status_topic = TOPIC_DEVICE_STATUS.format(
             prefix=topic_prefix, device_name=device_name
         )
-
-
 
         # Device-specific status topic
         self.response_topics = [status_topic]
@@ -93,10 +94,12 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
             if polling_mode == POLLING_MODE_NORMAL
             else None
         )
+        _type_str = "multiwhite" if self.is_multiwhite else "monochrome"
         _LOGGER.debug(
-            "Setting up status subscription for device %s (name: %s) on topic: %s with update interval %s",
+            "Setting up status subscription for device %s (name: %s) type (%s) on topic: %s with update interval %s",
             device_addr,
             device_name,
+            _type_str,
             status_topic,
             update_interval
         )
@@ -177,7 +180,9 @@ class HafeleLightCoordinator(DataUpdateCoordinator):
         """Fetch status from device via MQTT polling."""
         # Request status using getDeviceLightness operation only
         # Power state is inferred from lightness (lightness > 0 = on)
-        if self.entity and self.entity.is_multiwhite:
+        # Default to monochrome if entity not yet assigned
+        #is_multiwhite = self.entity.is_multiwhite if self.entity else False
+        if self.is_multiwhite:
             _type = "Multiwhite"
             get_lightness_topic = TOPIC_GET_DEVICE_CTL.format(
                 prefix=self.topic_prefix, device_name=self._device_name
@@ -303,6 +308,7 @@ async def async_setup_entry(
                 polling_interval,
                 polling_timeout,
                 polling_mode,
+                device_types,
             )
 
             # Set up subscriptions to device status topic
@@ -524,6 +530,17 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
 
         device_types = device_info.get("device_types", [])
         self._is_multiwhite = any(t.lower() == "multiwhite" for t in device_types)
+        self._attr_color_mode = (
+            ColorMode.COLOR_TEMP if self._is_multiwhite else ColorMode.BRIGHTNESS
+        )
+        if self._is_multiwhite:
+            self._attr_supported_color_modes = {
+                ColorMode.COLOR_TEMP
+            }
+        else:
+            self._attr_supported_color_modes = {
+                ColorMode.BRIGHTNESS
+            }
 
         # Store device name (use as-is, no encoding)
         device_name = device_info.get("device_name", f"device_{device_addr}")
@@ -544,6 +561,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
             model="Local MQTT Light",
             suggested_area=location,
         )
+        _LOGGER.info(f"initiated {self} - multiwhite: {self._is_multiwhite}")
     @property
     def device_name(self) -> str:
         return self._device_name
@@ -570,35 +588,26 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         self._priority = PollPriority.NORMAL
 
     @property
-    def min_color_temp_kelvin(self) -> int | None:
-        if self._is_multiwhite:
+    def color_temp_kelvin(self):
+        if not self.coordinator.data:
             return 2700
-        return None
+        temp = self.coordinator.data.get("temperature")
+        return temp if temp is not None else None
 
     @property
-    def max_color_temp_kelvin(self) -> int | None:
-        if self._is_multiwhite:
-            return 5000
-        return None
+    def min_color_temp_kelvin(self) -> int:
+        return 2700
 
     @property
-    def color_mode(self) -> ColorMode | None:
-        if self._is_multiwhite:
-            return ColorMode.COLOR_TEMP
-        return ColorMode.BRIGHTNESS
+    def max_color_temp_kelvin(self) -> int:
+        return 5000
 
     @property
-    def supported_color_modes(self) -> set[ColorMode] | None:
-        if self._is_multiwhite:
-         return {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP}
-        return {ColorMode.BRIGHTNESS}
-
-    @property
-    def is_on(self) -> bool | None:
+    def is_on(self) -> bool:
         """Return if the light is on."""
         if not self.coordinator.data:
-            # Return None to show unknown state until first poll completes
-            return None
+            # Return False until first poll completes
+            return False
 
         # Parse status data - API uses "onoff" or "onOff" field
         # Status responses use numeric: 1 = on, 0 = off
@@ -637,8 +646,10 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
     @property
     def color_temp_kelvin(self) -> int | None:
         """Return the color_temperature of the light."""
+        if not self._is_multiwhite:
+            return None
         if not self.coordinator.data:
-            # Return None to show unknown state until first poll completes
+            # Return None until first poll completes
             return None
         #_LOGGER.debug(f"color temp is calculated for: {self}")
         status = self.coordinator.data
@@ -653,7 +664,7 @@ class HafeleLightEntity(CoordinatorEntity, LightEntity):
         if not self.coordinator.data:
             # Return None to show unknown state until first poll completes
             # Don't use last_known_lightness here to show true unknown state
-            return None
+            return 0
 
         status = self.coordinator.data
         if isinstance(status, dict):
